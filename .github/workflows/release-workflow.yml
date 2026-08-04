@@ -1,17 +1,10 @@
 # Test workflow: builds and packages a .NET project and (optionally) creates a GitHub Release (Windows).
-name: Test Build & Package (.NET) - Manual (Windows)
+name: Build & Package (.NET) - Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      create_release:
-        description: 'Set to "true" to actually create a GitHub Release (default: false)'
-        required: false
-        default: 'false'
-      dotnet_version:
-        description: 'Dotnet SDK version to use'
-        required: false
-        default: '7.0.x'
+  push:
+    branches:
+      - main
 
 permissions:
   contents: write
