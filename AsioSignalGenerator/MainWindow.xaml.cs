@@ -367,8 +367,10 @@ namespace AsioSignalGenerator
             }
         }
 
-        private void StopButton_Click(object sender, RoutedEventArgs e)
+        private async void StopButton_Click(object sender, RoutedEventArgs e)
         {
+            string? driverName = DeviceComboBox.SelectedItem as string;
+
             try
             {
                 asioOut?.Stop();
@@ -381,6 +383,34 @@ namespace AsioSignalGenerator
             finally
             {
                 SetPlayingUI(false);
+            }
+
+            // Fully release and then re-open the driver so it's left in a clean stopped state.
+            if (driverName != null)
+            {
+                try
+                {
+                    // Dispose current instance (TeardownAsio already handles this cleanly).
+                    TeardownAsio();
+
+                    // Small delay to give the ASIO driver time to release underlying resources.
+                    await Task.Delay(200);
+
+                    // Re-create the AsioOut for the same driver so the UI remains populated and driver is ready.
+                    asioOut = new AsioOut(driverName);
+                    asioOut.PlaybackStopped += AsioOut_PlaybackStopped;
+
+                    int outputChannels = asioOut.DriverOutputChannelCount;
+                    PopulateChannels(outputChannels);
+                    PopulateSampleRates();
+
+                    Log($"Reinitialised driver '{driverName}' after stopping playback.");
+                }
+                catch (Exception ex)
+                {
+                    Log($"Failed to reinitialise ASIO driver after stop: {ex.Message}");
+                    asioOut = null;
+                }
             }
         }
 
