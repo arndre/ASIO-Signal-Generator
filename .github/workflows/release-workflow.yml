@@ -19,7 +19,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: ${{ github.event.inputs.dotnet_version }}
+          dotnet-version: '7.0.x'
 
       - name: Set release tag (Windows)
         shell: pwsh
@@ -58,7 +58,6 @@ jobs:
           path: ${{ env.ARTIFACT_ZIP }}
 
       - name: Create GitHub Release
-        if: ${{ github.event.inputs.create_release == 'true' }}
         id: create_release
         uses: actions/create-release@v1
         env:
@@ -67,12 +66,11 @@ jobs:
           tag_name: ${{ env.TAG }}
           release_name: Release ${{ env.TAG }}
           body: |
-            Automated test release created from commit ${{ github.sha }} by workflow ${{ github.workflow }}
+            Automated release created from commit ${{ github.sha }} by workflow ${{ github.workflow }}
           draft: false
           prerelease: false
 
       - name: Upload release asset(s)
-        if: ${{ github.event.inputs.create_release == 'true' }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
