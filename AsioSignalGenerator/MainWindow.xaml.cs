@@ -12,7 +12,11 @@ namespace AsioSignalGenerator
 {
     public partial class MainWindow : Window
     {
-        private const int SampleRate = 48000;
+        // Common candidate rates we probe against the selected driver. NAudio's AsioOut exposes
+        // IsSampleRateSupported(), which queries the driver directly - that's the real source of
+        // truth (unlike bit depth, which NAudio always abstracts away as 32-bit float).
+        private static readonly int[] CandidateSampleRates = { 44100, 48000, 88200, 96000, 176400, 192000 };
+        private const int PreferredDefaultSampleRate = 48000;
 
         private AsioOut? asioOut;
         private VolumeSampleProvider? volumeProvider;
@@ -87,6 +91,7 @@ namespace AsioSignalGenerator
 
                 int outputChannels = asioOut.DriverOutputChannelCount;
                 PopulateChannels(outputChannels);
+                PopulateSampleRates();
 
                 Log($"Loaded driver '{driverName}' — {outputChannels} output channel(s), {asioOut.DriverInputChannelCount} input channel(s).");
             }
@@ -133,6 +138,85 @@ namespace AsioSignalGenerator
                 routingProvider.ActiveChannels[index] = checkBox.IsChecked == true;
                 if (IsPlaying)
                     Log($"Output {index + 1} {(checkBox.IsChecked == true ? "enabled" : "disabled")} (live).");
+            }
+        }
+
+        /// <summary>
+        /// Probes the currently loaded driver against a list of standard sample rates and
+        /// builds the Sample Rate combo box, greying out / disabling any rate the driver
+        /// reports as unsupported. Defaults to 48 kHz if supported, otherwise the first
+        /// supported rate found.
+        /// </summary>
+        private void PopulateSampleRates()
+        {
+            SampleRateComboBox.Items.Clear();
+
+            if (asioOut == null)
+                return;
+
+            var mutedBrush = (Brush)(TryFindResource("MutedTextBrush") ?? Brushes.Gray);
+            var textBrush = (Brush)(TryFindResource("TextBrush") ?? Brushes.White);
+
+            var supportedRates = new System.Collections.Generic.List<int>();
+            ComboBoxItem? defaultItem = null;
+
+            foreach (int rate in CandidateSampleRates)
+            {
+                bool supported;
+                try
+                {
+                    supported = asioOut.IsSampleRateSupported(rate);
+                }
+                catch
+                {
+                    // Some drivers throw rather than return false for unsupported rates.
+                    supported = false;
+                }
+
+                var item = new ComboBoxItem
+                {
+                    Tag = rate,
+                    Content = supported ? $"{rate:N0} Hz" : $"{rate:N0} Hz  (not supported)",
+                    IsEnabled = supported,
+                    Foreground = supported ? textBrush : mutedBrush,
+                    FontWeight = supported ? FontWeights.SemiBold : FontWeights.Normal
+                };
+
+                if (supported)
+                {
+                    supportedRates.Add(rate);
+                    if (rate == PreferredDefaultSampleRate || defaultItem == null)
+                        defaultItem = item;
+                }
+
+                SampleRateComboBox.Items.Add(item);
+            }
+
+            if (defaultItem != null)
+            {
+                SampleRateComboBox.SelectedItem = defaultItem;
+            }
+            else if (SampleRateComboBox.Items.Count > 0)
+            {
+                // Nothing came back as supported (unusual) - fall back to the first entry so
+                // the UI isn't left with no selection at all.
+                SampleRateComboBox.SelectedIndex = 0;
+                Log("Warning: driver did not report any of the standard sample rates as supported. Check the ASIO Control Panel.");
+            }
+
+            Log(supportedRates.Count > 0
+                ? $"Supported sample rates: {string.Join(", ", supportedRates.ConvertAll(r => r.ToString("N0")))} Hz."
+                : "Could not determine supported sample rates from this driver.");
+        }
+
+        private int SelectedSampleRate =>
+            SampleRateComboBox.SelectedItem is ComboBoxItem item && item.Tag is int rate ? rate : PreferredDefaultSampleRate;
+
+        private void SampleRateComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (SampleRateComboBox.SelectedItem is ComboBoxItem item && item.Tag is int rate && !IsPlaying)
+            {
+                Log($"Sample rate set to {rate:N0} Hz.");
             }
         }
 
@@ -250,8 +334,9 @@ namespace AsioSignalGenerator
 
             try
             {
+                int sampleRate = SelectedSampleRate;
                 double frequency = FrequencySlider.Value;
-                var generator = CreateGenerator(SelectedWaveform, SampleRate, frequency);
+                var generator = CreateGenerator(SelectedWaveform, sampleRate, frequency);
                 activeFrequencyControl = generator as IFrequencyControl;
 
                 volumeProvider = new VolumeSampleProvider(generator)
@@ -272,7 +357,7 @@ namespace AsioSignalGenerator
                     .Where(t => t.isActive)
                     .Select(t => (t.idx + 1).ToString()));
 
-                Log($"Started: {SelectedWaveform} @ {frequency:0.##} Hz, {VolumeSlider.Value:0.0} dB, channel(s): {channelList} @ {SampleRate} Hz / 32-bit float.");
+                Log($"Started: {SelectedWaveform} @ {frequency:0.##} Hz, {VolumeSlider.Value:0.0} dB, channel(s): {channelList} @ {sampleRate:N0} Hz / 32-bit float.");
                 SetPlayingUI(true);
             }
             catch (Exception ex)
@@ -328,6 +413,7 @@ namespace AsioSignalGenerator
             StartButton.IsEnabled = !playing;
             StopButton.IsEnabled = playing;
             DeviceComboBox.IsEnabled = !playing;
+            SampleRateComboBox.IsEnabled = !playing;
 
             StatusText.Text = playing ? "Playing" : "Stopped";
             StatusDot.Fill = playing
@@ -384,6 +470,8 @@ namespace AsioSignalGenerator
             volumeProvider = null;
             routingProvider = null;
             activeFrequencyControl = null;
+
+            SampleRateComboBox.Items.Clear();
         }
 
         protected override void OnClosed(EventArgs e)

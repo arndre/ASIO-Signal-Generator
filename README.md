@@ -9,9 +9,17 @@ and a live log.
 
 - **ASIO device selection** — lists every ASIO driver installed on the
   system (`AsioOut.GetDriverNames()`).
-- **48 kHz / 32-bit float pipeline** — all generators run at 48 kHz IEEE
-  float internally; NAudio converts to whatever native format the ASIO
-  driver requires.
+- **Sample rate selection with live validation** — as soon as you pick a
+  driver, the app probes it (`AsioOut.IsSampleRateSupported`) against the
+  standard rates (44.1 / 48 / 88.2 / 96 / 176.4 / 192 kHz) and greys out /
+  disables any rate the driver doesn't support, defaulting to 48 kHz if
+  available.
+- **32-bit float pipeline** — all generators run as 32-bit IEEE float
+  internally; NAudio converts automatically to whatever native bit depth
+  the ASIO driver actually uses (ASIO doesn't expose a user-selectable bit
+  depth the way WASAPI does — the driver's native format is fixed and
+  NAudio's `AsioOut` abstracts the conversion away, so there's nothing
+  meaningful to pick there).
 - **Waveforms**: Sine, Square, Triangle, Sawtooth, White Noise, Pink Noise.
 - **Frequency control** via slider or exact numeric entry (20 Hz – 20 kHz).
 - **Multi-channel routing** — check any combination of output channels
@@ -61,15 +69,18 @@ The executable will be under
 ## Using the app
 
 1. Pick your ASIO driver from the **ASIO Device** dropdown. The app loads
-   it immediately and lists its output channels below.
-2. (Optional) Click **Control Panel...** to open the driver's own settings
-   dialog (buffer size, sample rate, routing, etc. — this is the same
+   it immediately, lists its output channels below, and tests standard
+   sample rates against it.
+2. Pick a **Sample Rate** — rates the driver doesn't support are shown
+   greyed out and can't be selected.
+3. (Optional) Click **Control Panel...** to open the driver's own settings
+   dialog (buffer size, routing, clock source, etc. — this is the same
    window you'd get from the driver's own control app).
-3. Choose a **Waveform** and, for tonal waveforms, set the **Frequency**.
-4. Check one or more **Output Channels** to send the signal to.
-5. Set the **Gain** in dB.
-6. Click **▶ Start**. Click **■ Stop** to stop.
-7. Watch the **Log** panel on the right for status and errors.
+4. Choose a **Waveform** and, for tonal waveforms, set the **Frequency**.
+5. Check one or more **Output Channels** to send the signal to.
+6. Set the **Gain** in dB.
+7. Click **▶ Start**. Click **■ Stop** to stop.
+8. Watch the **Log** panel on the right for status and errors.
 
 While playing, you can freely change frequency, gain, and which channels
 are active — those update live. Changing the *waveform type* while playing
