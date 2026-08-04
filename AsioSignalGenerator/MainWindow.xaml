@@ -155,7 +155,6 @@
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Vertical" Grid.Column="0">
                 <TextBlock Text="ASIO Signal Generator" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
-                <TextBlock Text="NAudio · 48 kHz / 32-bit float pipeline" FontSize="12" Foreground="{StaticResource MutedTextBrush}" Margin="0,2,0,0"/>
             </StackPanel>
             <Border Grid.Column="1" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}"
                     BorderThickness="1" CornerRadius="20" Padding="14,7" VerticalAlignment="Center">
@@ -304,9 +303,14 @@
                             <TextBlock Text="LOG" Style="{StaticResource SectionHeader}" Grid.Column="0" Margin="0"/>
                             <Button Grid.Column="1" Content="Clear" Style="{StaticResource GhostButton}" Padding="10,4" Click="ClearLogButton_Click"/>
                         </Grid>
-                        <ListBox x:Name="LogListBox" Grid.Row="1" Background="#15151F" Foreground="{StaticResource TextBrush}"
-                                 BorderThickness="0" FontFamily="Consolas" FontSize="12"
+                        <ListBox x:Name="LogListBox" Grid.Row="1" Foreground="{StaticResource TextBrush}"
+                                 BorderThickness="0" FontFamily="Consolas" FontSize="12" 
                                  ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                            <ListBox.Background>
+                                <ImageBrush ImageSource="/Images/bg.png"
+                    Stretch="UniformToFill"
+                    Opacity="0.1"/>
+                            </ListBox.Background>
                             <ListBox.ItemContainerStyle>
                                 <Style TargetType="ListBoxItem">
                                     <Setter Property="Padding" Value="4,2"/>
